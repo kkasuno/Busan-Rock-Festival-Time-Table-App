@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>부산락페 연결 복구</title>
+  <style>
+    body{margin:0;background:#090b0d;color:#f2f4f5;font:16px/1.6 system-ui,sans-serif;word-break:keep-all}
+    main{max-width:480px;margin:60px auto;padding:24px}h1{font-size:24px;line-height:1.4}
+    p{color:#c6cccf}button,a{font:inherit}button{padding:12px 20px;border:0;border-radius:6px;background:#b6ef67;color:#14210e;font-weight:700;cursor:pointer}
+    button:disabled{opacity:.6;cursor:wait}a{display:inline-block;color:#b6ef67;padding:12px 0}
+    [hidden]{display:none}#status{min-height:52px;overflow-wrap:anywhere}
+  </style>
+</head>
+<body><main>
+  <h1>부산락페 연결 복구</h1>
+  <p>화면을 여는 데 필요한 파일을 다시 준비합니다. 저장한 PICK, 개인 일정, 뱃지는 지우지 않습니다.</p>
+  <button id="repair" type="button">연결 복구하기</button>
+  <p id="status" role="status" aria-live="polite">인터넷이 연결된 상태에서 진행해주세요.</p>
+  <a id="open" href="/" hidden>앱 다시 열기</a>
+</main>
+<script>
+  const button = document.querySelector('#repair');
+  const status = document.querySelector('#status');
+  const link = document.querySelector('#open');
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    link.hidden = true;
+    status.textContent = '복구 파일을 준비하고 있습니다…';
+    try {
+      if (!('serviceWorker' in navigator)) throw new Error('이 브라우저에서는 복구 기능을 사용할 수 없습니다. Safari 또는 Chrome에서 열어주세요.');
+      const registration = await navigator.serviceWorker.register('/sw.js?repair=96a81bdce99f35f2', {scope:'/',updateViaCache:'none'});
+      const worker = registration.installing || registration.waiting || registration.active;
+      if (!worker) throw new Error('복구 파일을 받지 못했습니다.');
+      await new Promise((resolve, reject) => {
+        const finish = error => { clearTimeout(timer); worker.removeEventListener('statechange', check); error ? reject(error) : resolve(); };
+        const check = () => {
+          if (worker.state === 'activated') finish();
+          else if (worker.state === 'redundant') finish(new Error('복구 파일 저장에 실패했습니다. 연결 상태를 확인한 뒤 다시 시도해주세요.'));
+        };
+        const timer = setTimeout(() => finish(new Error('연결이 지연되고 있습니다. 인터넷 연결 후 다시 시도해주세요.')), 60000);
+        worker.addEventListener('statechange', check);
+        check();
+      });
+      status.textContent = '연결 복구가 완료됐습니다. 저장한 기록은 그대로 유지됩니다.';
+      link.hidden = false;
+    } catch (error) {
+      status.textContent = error.message || '복구하지 못했습니다. 인터넷 연결 후 다시 시도해주세요.';
+    } finally { button.disabled = false; }
+  });
+</script>
+</body></html>

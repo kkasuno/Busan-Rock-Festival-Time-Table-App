@@ -1,0 +1,31 @@
+import { chromium } from "file:///C:/Users/lp_08/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs";
+import assert from "node:assert/strict";
+const browser=await chromium.launch({headless:true,channel:"msedge"});
+try {
+ const page=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true});
+ await page.route(/.*(firebase|googleapis).*/,r=>r.abort());
+ await page.clock.install({time:new Date("2026-09-18T07:03:00Z")});
+ await page.addInitScript(()=>localStorage.setItem("busan-rock-timetable-picks",JSON.stringify(["2026-day1-samrock-4","2026-day1-green-xdinary-heroes"])));
+ await page.goto("http://localhost:4180");
+ await page.waitForFunction(()=>localStorage.getItem("busan-rock-personal-plans-v1")!==null);
+ await page.getByRole("button",{name:"타임테이블",exact:true}).click();
+ await page.getByRole("button",{name:/^MY /}).click();
+ assert.equal(await page.locator(".current-time-line").count(),5);
+ assert.equal(await page.locator(".current-time-label").textContent(),"16:03");
+ await page.getByRole("checkbox",{name:"이동시간"}).check();
+ assert.equal(await page.locator(".travel-connection").count(),1);
+ assert.equal(await page.locator(".travel-connection").getAttribute("data-departure"),"960");
+ assert.equal(await page.locator(".travel-connection").getAttribute("data-arrival"),"966");
+ assert.equal(await page.locator(".travel-connection text").textContent(),"5~6분");
+ await page.locator(".zoomable-schedule").evaluate(el=>el.scrollTop=1080);
+ await page.screenshot({path:"artifacts/travel-preview.png"});
+ await page.getByRole("checkbox",{name:"이동시간"}).uncheck();
+ assert.equal(await page.locator(".travel-overlay").count(),0);
+ await page.getByRole("button",{name:/DAY 2/}).click();
+ assert.equal(await page.locator(".current-time-line").count(),5);
+ await page.clock.setSystemTime(new Date("2026-09-18T15:30:00Z"));
+ await page.evaluate(()=>window.dispatchEvent(new Event("focus")));
+ assert.equal(await page.locator(".current-time-label").textContent(),"00:30");
+ assert.equal(await page.locator(".current-time-line").first().evaluate(el=>el.style.top),"0px");
+ console.log("PASS: MY toggle, 16:00→16:06 travel, nonfestival date red line, all days, out-of-hours edge.");
+} finally {await browser.close();}

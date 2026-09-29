@@ -1,0 +1,52 @@
+import { chromium } from "file:///C:/Users/lp_08/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs";
+import assert from "node:assert/strict";
+const browser=await chromium.launch({headless:true,channel:"msedge"});
+try{
+ for(const width of [390,360,768,1280]){
+ const context=await browser.newContext({viewport:{width,height:844},isMobile:true,hasTouch:true,geolocation:{latitude:35.17,longitude:128.97},permissions:["geolocation"]});
+ const page=await context.newPage();const errors=[];page.on("pageerror",e=>errors.push(e.message));
+ await page.route(/.*(firebase|googleapis).*/,r=>r.abort());
+ await page.goto("http://localhost:4180");
+ await page.waitForSelector(".badge-grid");
+ assert.equal(await page.locator(".home-install").getAttribute("open"),null);
+ assert.match(await page.locator(".home-install > summary").innerText(),/홈 화면에 설치 방법/);
+ await page.locator(".home-install > summary").click();
+ assert.notEqual(await page.locator(".home-install").getAttribute("open"),null);
+ await page.locator(".home-install > summary").click();
+ await page.screenshot({path:`artifacts/install-home-${width}.png`});
+ await page.getByRole("button",{name:"지도",exact:true}).click();
+ await page.waitForSelector(".leaflet-image-layer");
+ await page.waitForFunction(()=>{const img=document.querySelector(".leaflet-image-layer");return img?.complete&&img.naturalWidth>0;});
+ await page.screenshot({path:`artifacts/venue-map-${width}.png`});
+ const grip=await page.getByRole("button",{name:"정보창 크기 변경",exact:true}).boundingBox();
+ await page.mouse.move(grip.x+grip.width/2,grip.y+grip.height/2);await page.mouse.down();await page.mouse.move(grip.x+grip.width/2,grip.y-90,{steps:6});await page.mouse.up();
+ const sheetHeight=await page.locator(".venue-sheet").evaluate(el=>parseFloat(el.style.height));
+ assert.ok(sheetHeight>45&&sheetHeight<70,"drag keeps released sheet height");
+ await page.locator(".venue-categories").getByRole("button",{name:"음식점",exact:true}).click();
+ await page.getByRole("checkbox",{name:"테스트 음식점 보기"}).check();
+ assert.equal(await page.locator(".venue-list-item").count(),3);
+ assert.equal(await page.locator(".food-preview-strip").count(),3);
+ await page.screenshot({path:`artifacts/food-list-${width}.png`});
+ const first=page.locator(".venue-list-item").first();
+ await first.getByRole("button",{name:"먹고 싶어요",exact:true}).click();
+ await first.getByRole("button",{name:"먹었어요",exact:true}).click();
+ assert.equal(await first.getByRole("button",{name:"먹었어요",exact:true}).getAttribute("aria-pressed"),"true");
+ await first.locator(".venue-item-open").click();
+ assert.equal(await page.evaluate(()=>{const a=document.querySelector(".leaflet-image-layer").getBoundingClientRect();const b=document.querySelector(".venue-canvas").getBoundingClientRect();return a.right>b.left&&a.left<b.right&&a.bottom>b.top&&a.top<b.bottom;}),true);
+ assert.equal(await page.locator(".venue-menus article").count(),3);
+ await page.screenshot({path:`artifacts/venue-detail-${width}.png`});
+ await page.getByRole("button",{name:"목록으로",exact:true}).click();
+ await page.locator(".venue-categories").getByRole("button",{name:"무대",exact:true}).click();
+ await page.locator(".venue-item-open").first().click();
+ await page.getByRole("button",{name:"방문했어요",exact:true}).click();
+ await page.getByRole("button",{name:"내 위치",exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector(".location-message")?.textContent.includes("위치를 확인했습니다"));
+ await page.getByRole("button",{name:"홈",exact:true}).click();
+ assert.equal(await page.locator(".badge-grid .earned").count(),0);
+ await page.reload();await page.waitForFunction(()=>JSON.parse(localStorage.getItem("busan-festival-progress-v1")||"{}").visited?.includes("samrock"));
+ assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem("busan-festival-progress-v1")).eaten.length),1);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ await page.screenshot({path:`artifacts/badges-${width}.png`});
+ assert.deepEqual(errors,[]);console.log(`PASS ${width}: map, menus, independent checks, GPS, badges, persistence`);await context.close();
+ }
+}finally{await browser.close();}
