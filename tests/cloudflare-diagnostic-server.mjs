@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../cloudflare-upload/", import.meta.url));
 const port = Number(process.argv[2] || process.env.DIAGNOSTIC_PORT || 4197);
-const mime = { ".html": "text/html; charset=utf-8", ".js": "application/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".svg": "image/svg+xml" };
+const mime = { ".html": "text/html; charset=utf-8", ".js": "application/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".webp": "image/webp", ".svg": "image/svg+xml" };
 let mode = "online";
 const diagnostic = `<!doctype html><meta charset="utf-8"><title>Offline cache diagnostic</title>
 <h1>Cloudflare recovery test</h1>

@@ -1,0 +1,32 @@
+.venue-item-open.food-item-open{display:grid;grid-template-columns:104px minmax(0,1fr) 18px;gap:12px;align-items:start}
+.food-photo{display:block;width:100%;height:auto;aspect-ratio:6/5;object-fit:contain;background:#fff;border-radius:4px}
+.food-photo-unavailable{display:grid;place-items:center;background:#28333a;color:#afbdc6}
+.food-logo{object-fit:contain}
+.food-item-copy{min-width:0}
+.food-item-open .food-item-copy h2{font-size:18px;line-height:1.35;margin:4px 0 6px;overflow-wrap:anywhere;word-break:keep-all}
+.food-item-open .food-item-copy p{margin:4px 0;overflow-wrap:anywhere;word-break:keep-all}
+.food-item-copy .food-item-price{font-size:12px;color:#aebfc7}
+.food-item-price strong{color:#f0f4f6;font-variant-numeric:tabular-nums;white-space:nowrap}
+.food-open-chevron{margin-top:29px;color:#a7bbc5}
+.food-representative{margin:16px auto;max-width:300px}
+.food-representative .food-photo{aspect-ratio:auto}
+.food-representative figcaption{text-align:right;font-size:11px;color:#aebfc7;margin-top:5px}
+.food-menu-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:1px solid #475259;padding:12px 0}
+.food-menu-heading h3{font-size:17px;margin:0}
+.food-menu-heading span{font-size:12px;color:#aebfc7}
+.food-menu-list{list-style:none;margin:0;padding:0}
+.food-menu-list li{display:flex;align-items:baseline;gap:12px;padding:15px 0;border-bottom:1px solid #303d43;font-size:15px;line-height:1.5}
+.food-menu-list li>span{flex:1;min-width:0;overflow-wrap:anywhere;word-break:keep-all}
+.food-menu-list strong{white-space:nowrap;flex-shrink:0;font-size:14px;font-variant-numeric:tabular-nums}
+.food-menu-list img{width:64px;height:64px;object-fit:contain;align-self:center;border-radius:4px}
+.food-location-pending{display:flex;align-items:center;gap:5px;font-size:12px;color:#aebfc7;margin:12px 0}
+.food-menu-note{font-size:13px;color:#e7d695;line-height:1.6}
+.food-list-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 0 2px;font-size:12px;color:#b7c5cd}
+.food-list-meta select{max-width:65%;min-height:40px;padding:6px 8px;background:#20292e;color:#f0f4f6;border:1px solid #53626b;border-radius:4px;font:inherit;font-size:14px}
+.food-item-open:focus-visible,.food-list-meta select:focus-visible{outline:2px solid #d8ff38;outline-offset:4px}
+.venue-detail-head{flex-shrink:0}
+.venue-detail-head h2{word-break:keep-all;min-width:0;line-height:1.4}
+.venue-categories{scrollbar-width:none}
+.venue-categories::-webkit-scrollbar{display:none}
+@media(max-width:360px){.venue-item-open.food-item-open{grid-template-columns:84px minmax(0,1fr) 16px;gap:9px}.food-item-open .food-item-copy h2{font-size:17px}.food-checks button{padding:8px 6px}.food-menu-list li{font-size:14px}}
+@media(min-width:800px){.venue-item-open.food-item-open{grid-template-columns:132px minmax(0,1fr) 18px}.venue-sheet .venue-sheet-scroll{padding-inline:max(24px,calc((100% - 760px)/2))}}

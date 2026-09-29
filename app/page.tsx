@@ -23,6 +23,7 @@ const START = 11 * 60;
 const END = 22 * 60;
 const SCALE = 4;
 const STORAGE_KEY = "busan-rock-timetable-picks";
+const CONTEXT_STORAGE_KEY = "busan-rock-timetable-show-others";
 const LEGACY_PICKS: Record<string, string> = {
   "2026-day1-river-tokai": "2026-day1-green-1",
   "2026-day1-samrock-shin-in-ryu": "2026-day2-samrock-2",
@@ -60,6 +61,7 @@ export default function Home() {
   const [recordRequest,setRecordRequest] = useState(0);
   const [guideOpen, setGuideOpen] = useState(false);
   const [showTravel, setShowTravel] = useState(false);
+  const [showOtherPerformances, setShowOtherPerformances] = useState(false);
   const [ready, setReady] = useState(false);
   const [storageAvailable, setStorageAvailable] = useState(true);
   const [now, setNow] = useState<Date | null>(null);
@@ -93,6 +95,9 @@ export default function Home() {
     }
     setSharedPicks(incoming);
     try {
+      setShowOtherPerformances(localStorage.getItem(CONTEXT_STORAGE_KEY) === "true");
+    } catch { /* Display preferences are optional when storage is unavailable. */ }
+    try {
       const saved = JSON.parse(localStorage.getItem(PLAN_STORAGE) || "[]");
       setPlans(Array.isArray(saved) ? saved.filter(validPlan) : []);
     } catch { setStorageAvailable(false); }
@@ -113,6 +118,12 @@ export default function Home() {
     try { localStorage.setItem(PLAN_STORAGE, JSON.stringify(plans)); }
     catch { setStorageAvailable(false); }
   }, [plans, ready]);
+
+  function toggleOtherPerformances(visible: boolean) {
+    setShowOtherPerformances(visible);
+    try { localStorage.setItem(CONTEXT_STORAGE_KEY, String(visible)); }
+    catch { /* Keep the display toggle usable without persistent storage. */ }
+  }
 
   const day = festival.days.find((item) => item.id === dayId) ?? festival.days[0];
   const clockParts = now ? new Intl.DateTimeFormat("en-GB", {
@@ -253,7 +264,17 @@ export default function Home() {
       {sharedPicks && <aside className="shared-banner"><div><strong>공유받은 타임테이블</strong><span>{sharedPicks.length}개 공연이 선택되어 있어요.</span></div><button onClick={saveShared}>내 타임테이블로 저장</button></aside>}
 
       <section className="schedule-section" aria-label={`${day.label} 공연 시간표`}>
-        <div className="schedule-intro"><p>{mode === "my" ? "MY TIMETABLE" : "FULL LINE-UP"}</p><div className="schedule-commands">{mode === "my" && <><label className="travel-switch"><input type="checkbox" checked={showTravel} onChange={e => setShowTravel(e.target.checked)} /><span>이동시간</span></label><button className="guide-open" onClick={() => newPlan()}>일정 추가</button></>}<button className="guide-open" onClick={() => setGuideOpen(true)}>이용 안내</button></div></div>
+        <div className="schedule-intro">
+          <p>{mode === "my" ? "MY TIMETABLE" : "FULL LINE-UP"}</p>
+          <div className="schedule-commands">
+            {mode === "my" && <>
+              <label className="travel-switch"><input type="checkbox" checked={showOtherPerformances} onChange={e => toggleOtherPerformances(e.target.checked)} /><span>다른 공연 흐리게</span></label>
+              <label className="travel-switch"><input type="checkbox" checked={showTravel} onChange={e => setShowTravel(e.target.checked)} /><span>이동시간</span></label>
+              <button className="guide-open" onClick={() => newPlan()}>일정 추가</button>
+            </>}
+            <button className="guide-open" onClick={() => setGuideOpen(true)}>이용 안내</button>
+          </div>
+        </div>
         <ZoomableTimetable height={height + 48}>
           <div className="time-rail">
             <div className="time-head">TIME</div>
@@ -274,9 +295,9 @@ export default function Home() {
                 }}>
                   {showNow && <div className="current-time-line" style={{ top: nowTop }} aria-hidden="true" />}
                   {hours.map((hour) => <i className="hour-line" key={hour} style={{ top: (hour * 60 - START) * SCALE }} />)}
-                  {day.performances.filter((item) => item.stage === stage.id && (mode === "all" || picks.includes(item.id))).map((item) => {
+                  {day.performances.filter((item) => item.stage === stage.id && (mode === "all" || showOtherPerformances || picks.includes(item.id))).map((item) => {
                     const picked = picks.includes(item.id);
-                    return <Fragment key={item.id}><button data-performance-id={item.id} type="button" aria-pressed={picked} aria-label={`${item.artist} ${item.start}~${item.end} ${picked ? "PICK 취소" : "PICK 추가"}`} onClick={event => { event.stopPropagation(); togglePick(item.id); }} className={`performance stage-${stage.id} ${picked ? "picked" : ""} ${conflictIds.has(item.id) ? "conflict" : ""} ${mode==="my"&&isArtistShow(item)?"with-attendance":""}`}
+                    return <Fragment key={item.id}><button data-performance-id={item.id} type="button" aria-pressed={picked} aria-label={`${item.artist} ${item.start}~${item.end} ${picked ? "PICK 취소" : "PICK 추가"}`} onClick={event => { event.stopPropagation(); togglePick(item.id); }} className={`performance stage-${stage.id} ${picked ? "picked" : ""} ${mode === "my" && !picked ? "unpicked-context" : ""} ${conflictIds.has(item.id) ? "conflict" : ""} ${mode==="my"&&picked&&isArtistShow(item)?"with-attendance":""}`}
                       style={{
                         top: (minutes(item.start) - START) * SCALE + 16,
                         height: Math.max((minutes(item.end) - minutes(item.start)) * SCALE - 20, 52),
@@ -284,7 +305,7 @@ export default function Home() {
                       <span className="performance-pick-badge">{countLabel(item.id)} PICK</span>
                       <span className="artist">{item.artist}</span><span className="performance-meta">{conflictIds.has(item.id) && <i title="시간 중복">!</i>}<span>{item.start}—{item.end}</span></span>
                       {picked && <span className="picked-mark" aria-hidden="true">✓</span>}
-                    </button>{mode==="my"&&isArtistShow(item)&&<button className="attendance-check" aria-label={`${item.artist} 관람 완료`} aria-pressed={progress.attended.includes(item.id)} style={{top:(minutes(item.end)-START)*SCALE-31}} onClick={event=>{event.stopPropagation();toggleProgress("attended",item.id);}}>{progress.attended.includes(item.id)?"✓ 관람 완료":"관람 완료 체크"}</button>}</Fragment>;
+                    </button>{mode==="my"&&picked&&isArtistShow(item)&&<button className="attendance-check" aria-label={`${item.artist} 관람 완료`} aria-pressed={progress.attended.includes(item.id)} style={{top:(minutes(item.end)-START)*SCALE-31}} onClick={event=>{event.stopPropagation();toggleProgress("attended",item.id);}}>{progress.attended.includes(item.id)?"✓ 관람 완료":"관람 완료 체크"}</button>}</Fragment>;
                   })}
                 </div>
               </div>)}

@@ -48,6 +48,7 @@ export function bindMapGestures<T>(el: HTMLElement, controls: Controls<T>) {
     blockClickUntil = Date.now() + 400;
   };
   const click = (e: MouseEvent) => {
+    if ((e.target as Element).closest("a, .kakao-pin-list")) return;
     if (e.detail && Date.now() < blockClickUntil) { e.preventDefault(); e.stopPropagation(); }
   };
   const wheel = (e: WheelEvent) => {

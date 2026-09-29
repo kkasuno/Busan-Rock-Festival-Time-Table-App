@@ -69,9 +69,15 @@ h1 { margin:0; font-size:clamp(29px,5vw,52px); line-height:.86; font-weight:950;
 .schedule-intro { gap:8px; flex-wrap:wrap; }
 .schedule-commands { margin-left:auto; align-items:center; }
 .performance { cursor:pointer; }
+.performance.unpicked-context { opacity:.48; box-shadow:none; }
+.performance.unpicked-context:focus-visible { opacity:.8; }
 .performance:focus-visible { outline:3px solid white; outline-offset:2px; }
 .picked-mark { position:absolute; right:7px; top:7px; color:var(--stage); font-size:16px; }
-.schedule-commands { display:flex; gap:6px; }
+.schedule-commands { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; max-width:100%; }
+@media (max-width:380px) {
+  .schedule-commands { gap:4px; }
+  .schedule-commands .guide-open { padding:6px; font-size:11px; }
+}
 .schedule-intro p { flex-shrink:0; }
 .stages { position:relative; }
 .personal-plan-band { position:absolute; left:0; right:0; z-index:3; border:2px dashed #f4a461; background:#f4a46115; pointer-events:none; }

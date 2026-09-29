@@ -8,7 +8,7 @@ import { createOfflineWorker } from "../scripts/offline-worker.mjs";
 const root = new URL("../cloudflare-upload/", import.meta.url);
 const source = readFileSync(new URL("sw.js", root), "utf8");
 const config = JSON.parse(source.split("\n")[0].slice("self.FESTIVAL_OFFLINE = ".length, -1));
-const types = { html: "text/html", js: "application/javascript", css: "text/css", json: "application/json", png: "image/png", svg: "image/svg+xml" };
+const types = { html: "text/html", js: "application/javascript", css: "text/css", json: "application/json", png: "image/png", webp: "image/webp", svg: "image/svg+xml" };
 const html = body => new Response(body, { headers: { "Content-Type": "text/html" } });
 const keyOf = input => new URL(typeof input === "string" ? input : input.url, "https://festival.test").pathname;
 
@@ -98,6 +98,17 @@ test("slow connections time out to the offline shell", async () => {
   h.state.fetchOverride = () => new Promise(() => {});
   const response = await h.request();
   assert.equal(response.status, 200); assert.equal(h.requests.at(-1).init.signal.aborted, true);
+});
+
+test("vendor photographs are available offline with the prepared release", async () => {
+  const h = harness(); await h.lifecycle("install"); h.state.online = false;
+  const photos = config.assets.filter(path => path.startsWith("/food/"));
+  assert.equal(photos.length, 25);
+  for (const path of photos) {
+    const response = await h.request(path, "no-cors");
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("content-type"), "image/webp");
+  }
 });
 
 test("online upgrade or rollback uses server HTML without poisoning the offline release", async () => {

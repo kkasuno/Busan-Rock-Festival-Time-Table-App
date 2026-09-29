@@ -82,3 +82,12 @@ test("copyright links and the cluster list keep their native interactions",()=>{
   const s=setup();const native={closest:()=>({})};
   s.send("pointerdown",1,100,100,native);assert.equal(s.el.captured.size,0);assert.equal(s.moves.length,0);s.controller.dispose();
 });
+test("opening a cluster does not suppress a fast click on its place list",()=>{
+  const s=setup();s.send("pointerdown",1,100,100);s.send("pointerup",1,100,100);
+  for(const native of [true,false]){
+    const e=new Event("click",{cancelable:true});Object.assign(e,{detail:1});
+    Object.defineProperty(e,"target",{value:{closest:selector=>native&&selector==="a, .kakao-pin-list"?{}:null}});
+    s.el.dispatchEvent(e);assert.equal(e.defaultPrevented,!native);
+  }
+  s.controller.dispose();
+});

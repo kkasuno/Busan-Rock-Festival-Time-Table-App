@@ -1,30 +1,29 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Cross, Info, Music, Utensils, X } from "lucide-react";
 import { loadMaps, type Maps, type MapView, type Point, type MapEvent } from "./kakao-sdk";
 import { GUIDE_IMAGE, GUIDE_WIDTH, GUIDE_HEIGHT, guideCorners, imageToWorld, type GuidePlacement, type XY } from "./map-overlay";
-import { mapFrame, mapToScreen, screenToMap, clusterPins, type Pixel } from "./map-viewport";
+import { mapFrame, mapToScreen, screenToMap, type Pixel } from "./map-viewport";
 import { bindMapGestures } from "./map-gestures";
-import type { Venue } from "./venue-data";
+import { hasVenuePosition, type Venue } from "./venue-data";
+import { VenuePins } from "./venue-pins";
 
 type Location = { latitude: number; longitude: number; accuracy: number };
 type Props = {
   height: number; location: Location | null; reset: number; onFailure: () => void; active: boolean;
   placement?: GuidePlacement; opacity?: number; onMapClick?: (p: XY) => void; className?: string;
   rotation?: number; places?: Venue[]; placePlacement?: GuidePlacement; selected?: Venue | null;
-  onSelect?: (v: Venue) => void; locateRequest?: number; focusRequest?: number;
+  onSelect?: (v: Venue) => void; locateRequest?: number; focusRequest?: number; showPlaces?: boolean;
 };
 type ScreenState = { pins: { venue: Venue; point: Pixel }[]; gps: Pixel | null; width: number; height: number };
-const icons = { stage: Music, food: Utensils, facility: Cross, info: Info };
 
 export function KakaoVenueMap({ height, location, reset, onFailure, active, placement, opacity = .65, onMapClick, className,
-  rotation = 0, places, placePlacement, selected, onSelect, locateRequest = 0, focusRequest = 0 }: Props) {
+  rotation = 0, places, placePlacement, selected, onSelect, locateRequest = 0, focusRequest = 0, showPlaces = true }: Props) {
   const host = useRef<HTMLDivElement>(null), surface = useRef<HTMLDivElement>(null);
   const view = useRef<MapView | null>(null), api = useRef<Maps | null>(null);
   const update = useRef<(() => void) | null>(null), layout = useRef<(() => void) | null>(null), fit = useRef<(() => void) | null>(null);
   const focus = useRef<(() => void) | null>(null), locate = useRef<(() => void) | null>(null), follow = useRef(false);
   const [screen, setScreen] = useState<ScreenState>({ pins: [], gps: null, width: 0, height: 0 });
-  const [cluster, setCluster] = useState<Venue[] | null>(null);
+  const [pinRevision, setPinRevision] = useState(0);
   const controlled = places !== undefined;
   const latest = useRef({ location, placement, opacity, onFailure, onMapClick, rotation, places, placePlacement, selected });
   latest.current = { location, placement, opacity, onFailure, onMapClick, rotation, places, placePlacement, selected };
@@ -72,7 +71,7 @@ export function KakaoVenueMap({ height, location, reset, onFailure, active, plac
       const atWorld = (p: Pixel) => { const q = screenToMap(p, frame); return map.getProjection().coordsFromContainerPoint(new maps.Point(q.x, q.y)); };
       const venuePoint = (v: Venue) => {
         const p = latest.current.placePlacement;
-        if (!p) return null;
+        if (!p || !hasVenuePosition(v)) return null;
         const q = imageToWorld(p, { x: v.x / 100 * GUIDE_WIDTH, y: v.y / 100 * GUIDE_HEIGHT });
         return new maps.Coords(q.x, q.y).toLatLng();
       };
@@ -128,7 +127,7 @@ export function KakaoVenueMap({ height, location, reset, onFailure, active, plac
       if (controlled) {
         gestures = bindMapGestures(viewport, {
           worldAt: atWorld, getLevel: () => map.getLevel(), setLevel: n => { if (n !== map.getLevel()) map.setLevel(n); },
-          onInteract: () => { follow.current = false; setCluster(null); },
+          onInteract: () => { follow.current = false; setPinRevision(n => n + 1); },
           moveAnchor: (world, point) => {
             const projected = map.getProjection().containerPointFromCoords(world), target = screenToMap(point, frame);
             map.setCenter(map.getProjection().coordsFromContainerPoint(new maps.Point(frame.innerWidth / 2 + projected.x - target.x, frame.innerHeight / 2 + projected.y - target.y)));
@@ -153,15 +152,12 @@ export function KakaoVenueMap({ height, location, reset, onFailure, active, plac
   useEffect(() => { if (locateRequest) { follow.current = true; locate.current?.(); } }, [locateRequest]);
   useEffect(() => { fit.current?.(); }, [reset]);
   useEffect(() => { focus.current?.(); }, [selected, focusRequest]);
-  useEffect(() => { setCluster(null); }, [places, rotation, active, reset]);
-  const visible = (p: Pixel) => p.x >= 20 && p.y >= 20 && p.x <= screen.width - 20 && p.y <= screen.height - 28;
+  useEffect(() => { setPinRevision(n => n + 1); }, [places, rotation, active, reset]);
   return <div className={`${className || "venue-canvas kakao-venue-canvas"} kakao-viewport`} style={{ bottom: `${height}%`, visibility: active ? "visible" : "hidden", zIndex: active ? 450 : 0 }} ref={host} aria-hidden={!active} aria-label="카카오 행사장 지도" tabIndex={active && places !== undefined ? 0 : -1}>
     <div ref={surface} className="kakao-map-surface" style={{ position: "absolute", width: "100%", height: "100%", transformOrigin: "center", pointerEvents: places !== undefined ? "none" : "auto" }}/>
+    {showPlaces && <VenuePins {...screen} active={active} selected={selected} onSelect={onSelect} revision={pinRevision}/>}
     <div className="kakao-screen-pins">
-      {clusterPins(screen.pins.filter(p => visible(p.point))).map(({ items, point }) => { const venue = items[0].venue, Icon = icons[venue.category];
-        return <button key={venue.id} className={`kakao-place-pin ${items.length > 1 ? "pin-cluster" : `pin-${venue.category}`}`} style={{ left: point.x, top: point.y }} aria-label={items.length > 1 ? `장소 ${items.length}곳 보기: ${items.map(p=>p.venue.name).join(", ")}` : `${venue.name} 정보`} title={items.map(p=>p.venue.name).join(", ")} aria-pressed={items.some(p=>selected?.id===p.venue.id)} tabIndex={active ? 0 : -1} onClick={() => items.length > 1 ? setCluster(items.map(p=>p.venue)) : onSelect?.(venue)}>{items.length > 1 ? items.length : <Icon size={17}/>}</button>; })}
       {screen.gps && <div className="kakao-gps-dot" role="img" aria-label={`내 위치 · 정확도 약 ${Math.round(location?.accuracy || 0)}m`} style={{ left: screen.gps.x, top: screen.gps.y }}><span>내 위치</span></div>}
     </div>
-    {cluster && <section className="kakao-pin-list" aria-label="겹친 장소" onPointerDown={e=>e.stopPropagation()} onWheel={e=>e.stopPropagation()}><header><strong>장소 {cluster.length}곳</strong><button aria-label="장소 목록 닫기" title="장소 목록 닫기" onClick={()=>setCluster(null)}><X size={16}/></button></header>{cluster.map(v=><button key={v.id} onClick={()=>{setCluster(null);onSelect?.(v);}}>{v.name}</button>)}</section>}
   </div>;
 }
